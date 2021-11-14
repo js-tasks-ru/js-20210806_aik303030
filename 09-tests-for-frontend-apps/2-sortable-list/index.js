@@ -1,48 +1,29 @@
 export default class SortableList {
-  element;
-  draggingElement;
-  constructor({ items }) {
-    this.items = items;
-    this.render();
-  }
-
-  dispatchEvent (type, details) {
-    this.element.dispatchEvent(new CustomEvent(type, {
-      bubbles: true,
-      details
-    }));
-  }
-
-  getPlaceholder(height) {
-    const placeholder = document.createElement('div');
-    placeholder.classList.add('sortable-list__placeholder');
-    placeholder.style.height = height + 'px';
-    return placeholder;
-  }
 
   onPointerDown = (e) => {
     if (e.target.dataset.grabHandle !== undefined) {
-
       this.draggingElement = e.target.closest('.sortable-list__item');
       const elementWidth = this.draggingElement.offsetWidth;
       const elementHeight = this.draggingElement.offsetHeight;
 
       const elementIndex = [...this.element.children].indexOf(this.draggingElement);
 
-      const shiftY = e.clientY - this.draggingElement.offsetTop - this.element.offsetTop;
-      const shiftX = e.clientX - this.draggingElement.offsetLeft - this.element.offsetLeft;
+      const placeholder = this.getPlaceholder(this.draggingElement.offsetHeight);
+      this.draggingElement.after(placeholder);
+
+      const shiftY = e.clientY - this.draggingElement.getBoundingClientRect().top;
+      const shiftX = e.clientX - this.draggingElement.getBoundingClientRect().left;
 
       this.draggingElement.classList.add('sortable-list__item_dragging');
       this.draggingElement.style.width = elementWidth + 'px';
       this.draggingElement.style.height = elementHeight + 'px';
 
-      const placeholder = this.getPlaceholder(this.draggingElement.offsetHeight);
-
-      this.draggingElement.after(placeholder);
+      this.draggingElement.style.top = e.clientY + shiftY + 'px';
+      this.draggingElement.style.left = e.clientX + shiftX + 'px';
 
       const onPointerMove = (e) => {
-        const clientY = e.clientY - this.element.offsetTop - shiftY;
-        const clientX = e.clientX - this.element.offsetLeft - shiftX;
+        const clientX = e.clientX + shiftX;
+        const clientY = e.clientY + shiftY;
         this.element.append(this.draggingElement);
         this.draggingElement.style.top = clientY + 'px';
         this.draggingElement.style.left = clientX + 'px';
@@ -91,12 +72,13 @@ export default class SortableList {
       };
 
       const onPointerUp = () => {
+        document.removeEventListener('mousemove', onPointerMove);
+        document.removeEventListener('pointerup', onPointerUp);
         const placeholderIndex = [...this.element.children].indexOf(placeholder);
         this.draggingElement.style.cssText = '';
         this.draggingElement.classList.remove('sortable-list__item_dragging');
         placeholder.replaceWith(this.draggingElement);
         this.draggingElement = null;
-        document.removeEventListener('mousemove', onPointerMove);
 
         if (placeholderIndex !== elementIndex) {
           this.dispatchEvent('sortable-list-reorder', {
@@ -114,7 +96,29 @@ export default class SortableList {
     }
   }
 
+  element;
+  draggingElement;
+  constructor({ items }) {
+    this.items = items;
+    this.render();
+  }
+
+  dispatchEvent (type, details) {
+    this.element.dispatchEvent(new CustomEvent(type, {
+      bubbles: true,
+      details
+    }));
+  }
+
+  getPlaceholder(height) {
+    const placeholder = document.createElement('div');
+    placeholder.classList.add('sortable-list__placeholder');
+    placeholder.style.height = height + 'px';
+    return placeholder;
+  }
+
   addEventListeners() {
+    document.ondragstart = () => false;
     document.addEventListener('pointerdown', this.onPointerDown);
   }
 
@@ -140,5 +144,4 @@ export default class SortableList {
     document.removeEventListener('pointerdown', this.onPointerDown);
     this.element = null;
   }
-
 }
